@@ -1,3 +1,10 @@
+# This portion of the project will control the creation of a modified copy of the source function file
+# CURRENTLY: The function simply appends a suffix onto the name of the file passed into the function.
+
+#PLANNING: The next step will be to make another function which:
+    # -Determines system capabilities (ASIMD, SVE, SVE2)
+    # -Calls the editFunction for the function.c file with vectorizationMode determined by system 
+
 # Possible function suffixes
 simd = '_ASIMD'
 sve = '_SVE'
@@ -30,15 +37,12 @@ def editFunction(filename:str, vectorizationMode:int):
 
         for line in src_orig:
             if "void" in line:
-
                 lineParts = line.split("(")
                 lineParts[0] += vecTypeSuffix
 
-                line = lineParts[0] + "(" + lineParts[1]
-                
+                line = lineParts[0] + "(" + lineParts[1]                
             newLines.append(line)
 
     with open (newFileName, 'w') as new:
         for line in newLines:
             new.write(line + '\n')
-                
