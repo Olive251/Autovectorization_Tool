@@ -31,7 +31,7 @@ class autoVectorTool:
         self.writeIFuncBits()
         self.buildMakerFile()
 
-        #TODO - run the MakerFile
+        #TODO - run the makerfile
 
     def writeIFuncBits(self):
         # TODO
