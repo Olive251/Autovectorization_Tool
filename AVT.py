@@ -131,5 +131,6 @@ class avtFactorium:
 
 
 if __name__ == "__main__":
+    #TODO - update to use avtFactorium once completed
     avt = autoVectorTool(sys.argv[1])
     avt.run()
