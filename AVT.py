@@ -37,20 +37,12 @@ class autoVectorTool:
         self.writeFunction(newFile, functNonSVE)
 
         self.writeIFuncBits()
-        self.buildMakerFile()
-
-        #TODO - run the makerfile
 
     def writeIFuncBits(self):
         # TODO
         # Get resolver and ifunc templates
         # Replace foo with _functionName
         # Write new functions to file with writeFunction()
-        pass
-
-    def buildMakerFile(self):
-        #TODO
-        # create the makerfile
         pass
 
     def editFunction(self, functionLines:list, vectorizationSuffix:str = ""):
@@ -125,8 +117,16 @@ class avtFactorium:
         #return list of said files
         pass
 
+    def buildMakerFile(self):
+        #TODO
+        # create the makerfile
+        pass
+
     def runFactorium():
-        #run avt for each file in _files
+        #for each file in _files
+        #  -build and run an avt
+        #buildMakerFile()
+        #run maker file
         pass
 
 
