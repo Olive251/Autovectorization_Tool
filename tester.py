@@ -1,8 +1,6 @@
 from autoVectorTool import autoVectorTool
+import sys
 
-
-AV = autoVectorTool('helloWorld.c')
-
-AV.run()
-
-# autoVectorTool('doubleHelloWorld.c')
+if __name__ == "__main__":
+    avt = autoVectorTool(sys.argv[1])
+    avt.run()
