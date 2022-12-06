@@ -1,4 +1,5 @@
 #TODO
+#get rid of main in resolvertemplate
 # -MAYBE move the avt_resolverTemplate out of a .c file and into this file
 #   OR figue out how bundling, etc works in python
 # -write Makefile to utilize the *_AutoVTooled.c file
@@ -18,6 +19,7 @@
 #   Buuuut then that fails to consider programs that don't have main.c as their entry
 #   Could search through every *.c file that doesn't contain a main(){}? 
 # Easiest way to do this would be to make a class that uses instances of current AVT for each include
+#
 
 import sys
 
