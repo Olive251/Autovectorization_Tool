@@ -1,6 +1,6 @@
-from editFunction import editFunction
+from autoVectorTool import autoVectorTool
 
 
-editFunction('helloWorld.c', 1)
+autoVectorTool('helloWorld.c')
 
-editFunction('doubleHelloWorld.c', 1)
+# autoVectorTool('doubleHelloWorld.c')
