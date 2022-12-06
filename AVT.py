@@ -45,7 +45,7 @@ class autoVectorTool:
         # TODO
         # Get resolver and ifunc templates
         # Replace foo with _functionName
-        # Write new functs to file with writeFunction()
+        # Write new functions to file with writeFunction()
         pass
 
     def buildMakerFile(self):
