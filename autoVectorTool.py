@@ -9,7 +9,6 @@ sve = '_SVE'
 sve2 = 'SVE2'
 
 class autoVectorTool:
-
     def __init__(self, filename:str):
         self._filename = filename
         self.orig_functionLines = self.getFunction()
