@@ -8,6 +8,10 @@
 # -Need to do some reworking:
 # -avt should open the main.c
 #   -THEN do what run currently does for each user created imported file
+# -fix writeIfuncBits
+#   -currently writes
+#   -not breaking anything but NOT best practice compliant
+#
 # -HOW TO GET IMPORTED FILES
 # header file names don't neccessarily correlate to their source file name
 # Might be better to do it with all *.c files in the directory that aren't main?
