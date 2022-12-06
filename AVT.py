@@ -117,7 +117,7 @@ class autoVectorTool:
 class avtFactorium:
     def __init__(self, filename:str):
         self._main = filename
-        self.getImportFiles()
+        self._files = self.getImportFiles()
         pass
 
     def getImportFiles(self):
@@ -126,7 +126,7 @@ class avtFactorium:
         pass
 
     def runFactorium():
-        #run avt for each file
+        #run avt for each file in _files
         pass
 
 
