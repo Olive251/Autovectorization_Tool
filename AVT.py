@@ -4,6 +4,13 @@
 # -append those functions to the new file
 # -write makerfile to utilize the *_AutoVTooled.c file
 # -run the makerfile
+# 
+# Rework
+# -Need to do some reworking:
+# -avt should open the main.c
+#   -THEN do what run currently does for each user created imported file
+# Easiest way to do this would be to make a class that uses instances of current AVT for each include
+
 import sys
 
 # Function suffixes
@@ -106,6 +113,8 @@ class autoVectorTool:
 
     def makeFunctionLineList(self, functionLines:list):
         return functionLines       
+
+
 
 if __name__ == "__main__":
     avt = autoVectorTool(sys.argv[1])
