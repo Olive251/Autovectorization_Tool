@@ -2,7 +2,7 @@
 # -MAYBE move the avt_resolverTemplate out of a .c file and into this file
 #   OR figue out how bundling, etc works in python
 # -write Makefile to utilize the *_AutoVTooled.c file
-# -run the Makefile
+# -compile the target code
 # 
 # Rework
 # -Need to do some reworking:
