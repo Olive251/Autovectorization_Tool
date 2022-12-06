@@ -1,2 +1,2 @@
-*.c
 __pycache__/editFunction.cpython-311.pyc
+testFiles/

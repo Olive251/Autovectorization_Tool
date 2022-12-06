@@ -1,4 +1,3 @@
-//test
 
 void helloWorld() {
     int a = 2;

@@ -1,7 +1,6 @@
 #TODO
-# -create resolver and ifunc templates and store as class data members
-# -create writeResolver() to replace "foo" in templates with _functionName
-# -append those functions to the new file
+# -MAYBE move the avt_resolverTemplate out of a .c file and into this file
+#   OR figue out how bundling, etc works in python
 # -write makerfile to utilize the *_AutoVTooled.c file
 # -run the makerfile
 # 
@@ -9,6 +8,11 @@
 # -Need to do some reworking:
 # -avt should open the main.c
 #   -THEN do what run currently does for each user created imported file
+# -HOW TO GET IMPORTED FILES
+# header file names don't neccessarily correlate to their source file name
+# Might be better to do it with all *.c files in the directory that aren't main?
+#   Buuuut then that fails to consider programs that don't have main.c as their entry
+#   Could search through every *.c file that doesn't contain a main(){}? 
 # Easiest way to do this would be to make a class that uses instances of current AVT for each include
 
 import sys
@@ -16,11 +20,12 @@ import sys
 # Function suffixes
 nonsve = '_NonSVE'
 sve = '_SVE'
-sve2 = 'SVE2'
+sve2 = '_SVE2'
 
 class autoVectorTool:
     def __init__(self, filename:str):
         self._filename = filename
+        self._newFile = ""
         self.orig_functionLines = self.getFunction()
         self._functionName = ""
         
@@ -30,11 +35,11 @@ class autoVectorTool:
         functNonSVE = self.editFunction(self.orig_functionLines.copy(), nonsve)
 
         fNameParts = self._filename.split(".")
-        newFile = fNameParts[0] + "_AutoVTooled." + fNameParts[1]
+        self._newFile = fNameParts[0] + "_AutoVTooled." + fNameParts[1]
 
-        self.writeFunction(newFile, functSVE2)
-        self.writeFunction(newFile, functSVE)
-        self.writeFunction(newFile, functNonSVE)
+        self.writeFunction(functSVE2)
+        self.writeFunction(functSVE)
+        self.writeFunction(functNonSVE)
 
         self.writeIFuncBits()
 
@@ -43,7 +48,18 @@ class autoVectorTool:
         # Get resolver and ifunc templates
         # Replace foo with _functionName
         # Write new functions to file with writeFunction()
-        pass
+        print("writeIFuncBits called")
+
+        with open("avt_resolverTemplate.c", 'r') as template:
+            t = template.read().splitlines()
+            newIfuncBits:list = []
+
+            for line in t:
+                if "foo" in line:
+                    line = line.replace("foo", self._functionName)
+                    print(line)
+                newIfuncBits.append(line)
+            self.writeFunction(newIfuncBits)
 
     def editFunction(self, functionLines:list, vectorizationSuffix:str = ""):
         declaration = functionLines[0]
@@ -64,8 +80,8 @@ class autoVectorTool:
 
         return functionLines
 
-    def writeFunction(self, filename:str, functionLines:list):
-        with open(filename, 'a') as file:
+    def writeFunction(self, functionLines:list):
+        with open(self._newFile, 'a') as file:
             file.write('\n')
             for line in functionLines:
                 file.write(line + '\n')
@@ -100,18 +116,16 @@ class autoVectorTool:
                             break
                     else:
                         functionLines.append(line)
-        
             return functionLines
 
     def makeFunctionLineList(self, functionLines:list):
         return functionLines       
+#==============================================================================#
 
-
-class avtFactorium:
+class avtFactorum:
     def __init__(self, filename:str):
         self._main = filename
         self._files = self.getImportFiles()
-        pass
 
     def getImportFiles(self):
         #get imported user files (ie Function.c) from main
@@ -123,7 +137,7 @@ class avtFactorium:
         # create the makerfile
         pass
 
-    def runFactorium():
+    def run():
         #for each file in _files
         #  -build and run an avt
         #buildMakerFile()
