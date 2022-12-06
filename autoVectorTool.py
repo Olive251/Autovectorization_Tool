@@ -28,7 +28,24 @@ class autoVectorTool:
         self.writeFunction(newFile, functSVE)
         self.writeFunction(newFile, functNonSVE)
 
-    def editFunction(self, functionLines:list, vectorizationSuffix:str):
+        self.writeIFuncBits()
+        self.buildMakerFile()
+
+        #TODO - run the MakerFile
+
+    def writeIFuncBits(self):
+        # TODO
+        # Get resolver and ifunc templates
+        # Replace foo with _functionName
+        # Write new functs to file with writeFunction()
+        pass
+
+    def buildMakerFile(self):
+        #TODO
+        # create the makerfile
+        pass
+
+    def editFunction(self, functionLines:list, vectorizationSuffix:str = ""):
         declaration = functionLines[0]
 
         declParts = declaration.split("(")
