@@ -1,12 +1,7 @@
 #TODO
-# -get file
-# -write C code to determine system capability into C file
-# -write implementations of C code for all capabilities using editFunction()
-# -write ifunc resolver function
-
-#Possible Changes
-# -Should make this into a class.
-    # Would allow saving the original function name in order to replace "foo"s in a resolver template
+# -create resolver and ifunc templates and store as class data members
+# -create writeResolver() to replace "foo" in templates with _functionName
+# -append those functions to the new file
 
 # Function suffixes
 nonsve = '_NonSVE'
@@ -21,7 +16,6 @@ class autoVectorTool:
         self._functionName = ""
         
     def run(self):
-
         functSVE2 = self.editFunction(self.orig_functionLines.copy(), sve2)
         functSVE = self.editFunction(self.orig_functionLines.copy(), sve)
         functNonSVE = self.editFunction(self.orig_functionLines.copy(), nonsve)
