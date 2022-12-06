@@ -48,10 +48,6 @@ class autoVectorTool:
         self.writeIFuncBits()
 
     def writeIFuncBits(self):
-        # TODO
-        # Get resolver and ifunc templates
-        # Replace foo with _functionName
-        # Write new functions to file with writeFunction()
         print("writeIFuncBits called")
 
         with open("avt_resolverTemplate.c", 'r') as template:
@@ -137,7 +133,6 @@ class avtFactorum:
         pass
 
     def buildMakefile(self):
-        #TODO
         # create the Makefile
         pass
 
