@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #TODO
 #get rid of main in resolvertemplate
 # -MAYBE move the avt_resolverTemplate out of a .c file and into this file
@@ -19,14 +21,25 @@
 #   Buuuut then that fails to consider programs that don't have main.c as their entry
 #   Could search through every *.c file that doesn't contain a main(){}? 
 # Easiest way to do this would be to make a class that uses instances of current AVT for each include
-#
+
+# Useful CFLAGS values:
+#    Basic aarch64 target:	-march=armv8-a
+#    aarch64 with SVE:		-march=armv8.5-a+sve
+#    aarch64 with SVE2:		-march=armv8.5-a+sve2
 
 import sys
+#CFLAG values
 
+#color codes
+class txtColors:
+    FAIL = '\033[91m'
+    WARNING = '\033[93m'
+    STD = '\033[0m'
 # Function suffixes
 nonsve = '_NonSVE'
 sve = '_SVE'
 sve2 = '_SVE2'
+
 
 class autoVectorTool:
     def __init__(self, filename:str):
@@ -50,7 +63,7 @@ class autoVectorTool:
         self.writeIFuncBits()
 
     def writeIFuncBits(self):
-        print("writeIFuncBits called")
+        #print("writeIFuncBits called")
 
         with open("avt_resolverTemplate.c", 'r') as template:
             t = template.read().splitlines()
@@ -59,7 +72,7 @@ class autoVectorTool:
             for line in t:
                 if "foo" in line:
                     line = line.replace("foo", self._functionName)
-                    print(line)
+                    #print(line)
                 newIfuncBits.append(line)
             self.writeFunction(newIfuncBits)
 
@@ -67,12 +80,11 @@ class autoVectorTool:
         declaration = functionLines[0]
 
         declParts = declaration.split("(")
-
         declPts2 = declParts[0].split(" ")
 
         if not self._functionName:
             self._functionName = declPts2[1]
-
+        print(declParts)
         declPts2[1] = "*" + declPts2[1]
         declParts[0] = declPts2[0] + " " + declPts2[1]
         declParts[0] += vectorizationSuffix
@@ -92,33 +104,40 @@ class autoVectorTool:
     # TODO: utilize makeFunctionLineList() to be able to return a list of lists of function lines
     # ...(to clarify, return an array of functions broken down by lines)
     def getFunction(self):
-        with open (self._filename, 'r') as src:
-            src_orig = src.read().splitlines()
+        try:
+            with open (self._filename, 'r') as src:
+                src_orig = src.read().splitlines()
 
-            functionLines:list = []
+                functionLines:list = []
 
-            isFunctionLine = False
-            openBrackets = 0
+                isFunctionLine = False
+                openBrackets = 0
 
-            for line in src_orig:
-                if isFunctionLine is False:
-                    if "{" in line:
-                        isFunctionLine = True
-                        openBrackets = openBrackets + 1
-                        functionLines.append(line)
-                else:
-                    if "{" in line:
-                        openBrackets = openBrackets + 1
-                        functionLines.append(line)
-                    elif "}" in line:
-                        openBrackets = openBrackets - 1
-                        functionLines.append(line)
-                        if openBrackets == 0:
-                            isFunctionLine = False
-                            break
+                for line in src_orig:
+                    if isFunctionLine is False:
+                        if "(" in line and "void" in line:
+                            isFunctionLine = True
+                            functionLines.append(line)
+                        if "{" in line:
+                            isFunctionLine = True
+                            openBrackets = openBrackets + 1
+                            functionLines.append(line)
                     else:
-                        functionLines.append(line)
-            return functionLines
+                        if "{" in line:
+                            openBrackets = openBrackets + 1
+                            functionLines.append(line)
+                        elif "}" in line:
+                            openBrackets = openBrackets - 1
+                            functionLines.append(line)
+                            if openBrackets == 0:
+                                isFunctionLine = False
+                                break
+                        else:
+                            functionLines.append(line)
+                return functionLines
+        except:
+            print(txtColors.FAIL + "\nERROR: Unable to retrieve function in file \"" + self._filename +  "\"\n" + txtColors.STD)
+            print(txtColors.WARNING + "Ensure that the file called is correct and that the file exists in the current directory" + txtColors.STD)
 
     def makeFunctionLineList(self, functionLines:list):
         return functionLines       
@@ -148,5 +167,8 @@ class avtFactorum:
 
 if __name__ == "__main__":
     #TODO - update to use avtFactorium once completed
-    avt = autoVectorTool(sys.argv[1])
-    avt.run()
+    if len(sys.argv) < 2:
+        raise Exception(txtColors.FAIL + "To use the avt tool you must call it with a file like so:\n" + txtColors.WARNING + "      " + "<py avt function.c>\n" + txtColors.STD)
+    else:
+        avt = autoVectorTool(sys.argv[1])
+        avt.run()
