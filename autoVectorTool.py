@@ -2,6 +2,8 @@
 # -create resolver and ifunc templates and store as class data members
 # -create writeResolver() to replace "foo" in templates with _functionName
 # -append those functions to the new file
+# -write makerfile to utilize the *_AutoVTooled.c file
+# -run the makerfile
 
 # Function suffixes
 nonsve = '_NonSVE'
