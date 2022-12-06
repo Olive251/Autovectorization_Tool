@@ -114,6 +114,20 @@ class autoVectorTool:
     def makeFunctionLineList(self, functionLines:list):
         return functionLines       
 
+class avtFactorium:
+    def __init__(self, filename:str):
+        self._main = filename
+        self.getImportFiles()
+        pass
+
+    def getImportFiles(self):
+        #get imported user files (ie Function.c) from main
+        #return list of said files
+        pass
+
+    def runFactorium():
+        #run avt for each file
+        pass
 
 
 if __name__ == "__main__":
