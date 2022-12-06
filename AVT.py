@@ -1,8 +1,8 @@
 #TODO
 # -MAYBE move the avt_resolverTemplate out of a .c file and into this file
 #   OR figue out how bundling, etc works in python
-# -write makerfile to utilize the *_AutoVTooled.c file
-# -run the makerfile
+# -write Makefile to utilize the *_AutoVTooled.c file
+# -run the Makefile
 # 
 # Rework
 # -Need to do some reworking:
@@ -132,15 +132,15 @@ class avtFactorum:
         #return list of said files
         pass
 
-    def buildMakerFile(self):
+    def buildMakefile(self):
         #TODO
-        # create the makerfile
+        # create the Makefile
         pass
 
     def run():
         #for each file in _files
         #  -build and run an avt
-        #buildMakerFile()
+        #buildMakefile()
         #run maker file
         pass
 
