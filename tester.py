@@ -1,6 +1,8 @@
 from autoVectorTool import autoVectorTool
 
 
-autoVectorTool('helloWorld.c')
+AV = autoVectorTool('helloWorld.c')
+
+AV.run()
 
 # autoVectorTool('doubleHelloWorld.c')
