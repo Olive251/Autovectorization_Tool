@@ -106,6 +106,7 @@ class autoVectorTool:
     def makeFunctionLineList(self, functionLines:list):
         return functionLines       
 
+
 class avtFactorium:
     def __init__(self, filename:str):
         self._main = filename
