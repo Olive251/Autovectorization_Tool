@@ -4,6 +4,7 @@
 # -append those functions to the new file
 # -write makerfile to utilize the *_AutoVTooled.c file
 # -run the makerfile
+import sys
 
 # Function suffixes
 nonsve = '_NonSVE'
@@ -105,3 +106,7 @@ class autoVectorTool:
 
     def makeFunctionLineList(self, functionLines:list):
         return functionLines       
+
+if __name__ == "__main__":
+    avt = autoVectorTool(sys.argv[1])
+    avt.run()
