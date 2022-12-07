@@ -13,8 +13,14 @@
 #   Could search through every *.c file that doesn't contain a main(){}? 
 # Easiest way to do this would be to make a class that uses instances of current AVT for each include
 
+#LIMITATIONS:
+#The tool can only handle a single function in a single file presently.
+#The target file should have a related Makefile in the same directory for the tool to modify
+#Function in target file must be a void return type
+
 import sys
 import subprocess
+import os.path
 
 resolverTemplate = [   '#include <sys/auxv.h>',
    '',
@@ -41,7 +47,8 @@ resolverTemplate = [   '#include <sys/auxv.h>',
 class pragmas:
     SVE2 = "#pragma GCC target \"march=armv8-a+sve2\""
     SVE = "#pragma GCC target \"march=armv8-a+sve\""
-    NonSVE = "#pragma GCC target \"march=rmv8-a\""
+    NonSVE = "#pragma GCC target \"march=armv8-a\""
+    
 
 #color codes
 class txtColors:
@@ -76,7 +83,7 @@ class autoVectorTool:
         self.writeFunction(functNonSVE, pragmas.NonSVE)
 
         self.writeIFuncBits()
-        self.modifyMakefile()
+        #self.modifyMakefile() #removing to call seperately based on user input
 
     def modifyMakefile(self):
         f = self._filename.split('.')
@@ -94,17 +101,10 @@ class autoVectorTool:
             with open("Makefile", 'w') as mf:
                 for line in newMF:
                     mf.write(line + '\n')
-            #not sure if i want to leave this block here, just most convenient
-            #or if this is even necessary
-            ofile = replacementStr + ".o"
-            with open (ofile, 'w') as of:
-                of.write('\n')
         except:
             print(txtColors.FAIL + "Unable to modify Makefile.\n" + txtColors.WARNING + "Ensure that a Makefile is present in the current to be modified by AVT" + txtColors.STD)
 
     def writeIFuncBits(self):
-        # with open("avt_resolverTemplate.c", 'r') as template:
-        #     t = template.read().splitlines()
         newIfuncBits:list = []
 
         for line in resolverTemplate:
@@ -155,10 +155,6 @@ class autoVectorTool:
                         if "(" in line and "void" in line:
                             isFunctionLine = True
                             functionLines.append(line)
-                        # if "{" in line:
-                        #     isFunctionLine = True
-                        #     openBrackets = openBrackets + 1
-                        #     functionLines.append(line)
                     else:
                         if "{" in line:
                             openBrackets = openBrackets + 1
@@ -178,19 +174,49 @@ class autoVectorTool:
 
     def makeFunctionLineList(self, functionLines:list):
         return functionLines       
-#==============================================================================#
-    
 
+    def confirmNewFile(self):
+        if os.path.exists(self._newFile):
+            print(txtColors.GREEN + "fileToArray succesfully created" + "\'" + self._output + "\'" + txtColors.STD)
+        else:
+            print(txtColors.FAIL + "AVT unable to confirm " + self._output + " was sucessfully created." + txtColors.STD)
+#==============================================================================#
+
+def printInvalidOptionsMessage():
+    print(txtColors.FAIL + "Invalid options included in AVT call")
+    print(txtColors.WARNING + "Use < py avt -h > to see available options" + txtColors.STD)
+    
 #Implementation 1st pass
 #ONLY NEEDS TO WORK WITH TEST CODE!!!
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        raise Exception(txtColors.FAIL + "To use the avt tool you must call it with a file like so:\n" + txtColors.WARNING + "      " + "<py avt function.c>\n" + txtColors.STD)
+        raise Exception(txtColors.FAIL + 
+        "To use the avt tool you must call it with a file like so:\n" + 
+        txtColors.WARNING + "      " + "< py avt function.c >\n" +
+        "OR       < py avt -h > in order to see optional commands" +
+        txtColors.STD)
+    elif len(sys.argv) < 3:
+        if sys.argv[1] == '-h':
+            print("AutoVectorTool options:")
+            print(txtColors.GREEN + "\n-m   :   modify a makefile and call make after modifying" + txtColors.STD)
+            print('')
+            sys.exit()
+        else:
+            avt = autoVectorTool(sys.argv[1])
+            avt.run()
+            sys.exit()
+    elif len(sys.argv) < 4:
+        if sys.argv[2] == '-m':
+            avt = autoVectorTool(sys.argv[1])
+            avt.run()
+            p = subprocess.Popen('make', stdout=subprocess.PIPE)
+            for line in p.stdout:
+                print(line)
+            p.wait()
+        else:
+            printInvalidOptionsMessage()
+    elif len(sys.argv) > 3:
+       printInvalidOptionsMessage()
     else:
-        avt = autoVectorTool(sys.argv[1])
-        avt.run()
-        p = subprocess.Popen('make', stdout=subprocess.PIPE)
-        for line in p.stdout:
-            print(line)
-        p.wait()
+        printInvalidOptionsMessage()
 
