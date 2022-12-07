@@ -1,19 +1,10 @@
 #!/usr/bin/env python
 
 #TODO
-#get rid of main in resolvertemplate
-# -MAYBE move the avt_resolverTemplate out of a .c file and into this file
-#   OR figue out how bundling, etc works in python
-# -write Makefile to utilize the *_AutoVTooled.c file
-# -compile the target code
-# 
 # Rework
-# -Need to do some reworking:
+# -Need to do some reworking for final part:
 # -avt should open the main.c
 #   -THEN do what run currently does for each user created imported file
-# -fix writeIfuncBits
-#   -currently writes
-#   -not breaking anything but NOT best practice compliant
 #
 # -HOW TO GET IMPORTED FILES
 # header file names don't neccessarily correlate to their source file name
@@ -22,19 +13,43 @@
 #   Could search through every *.c file that doesn't contain a main(){}? 
 # Easiest way to do this would be to make a class that uses instances of current AVT for each include
 
-# Useful CFLAGS values:
-#    Basic aarch64 target:	-march=armv8-a
-#    aarch64 with SVE:		-march=armv8.5-a+sve
-#    aarch64 with SVE2:		-march=armv8.5-a+sve2
-
 import sys
-#CFLAG values
+import subprocess
+
+resolverTemplate = [   '#include <sys/auxv.h>',
+   '',
+   'static void (*resolve_foo(void)) {',
+   '    long hwcaps = getauxval(AT_HWCAP);',
+   '    long hwcaps2 = getauxval(AT_HWCAP2);',
+   '',
+   '    if (hwcaps2 & HWCAP2_SVE2)',
+   '        return foo_SVE2;',
+   '    else if (hwcaps & HWCAP_SVE)',
+   '        return foo_SVE;',
+   '    else ',
+   '        return foo_NonSVE;',
+   '}',
+   '',
+   'void *foo() __attribute__((ifunc("resolve_foo")));',
+   '',
+   'int main() {',
+   '    foo();',
+   '}'
+]
+
+#GCC target pragmas
+class pragmas:
+    SVE2 = "#pragma GCC target \"arch=armv8-a+sve2\""
+    SVE = "#pragma GCC target \"arch=armv8-a+sve\""
+    NonSVE = "#pragma GCC target \"arch=rmv8-a\""
 
 #color codes
 class txtColors:
     FAIL = '\033[91m'
     WARNING = '\033[93m'
+    GREEN = '\033[92m'
     STD = '\033[0m'
+
 # Function suffixes
 nonsve = '_NonSVE'
 sve = '_SVE'
@@ -54,27 +69,49 @@ class autoVectorTool:
         functNonSVE = self.editFunction(self.orig_functionLines.copy(), nonsve)
 
         fNameParts = self._filename.split(".")
-        self._newFile = fNameParts[0] + "_AutoVTooled." + fNameParts[1]
+        self._newFile = fNameParts[0] + "_AVT." + fNameParts[1]
 
-        self.writeFunction(functSVE2)
-        self.writeFunction(functSVE)
-        self.writeFunction(functNonSVE)
+        self.writeFunction(functSVE2, pragmas.SVE2)
+        self.writeFunction(functSVE, pragmas.SVE)
+        self.writeFunction(functNonSVE, pragmas.NonSVE)
 
         self.writeIFuncBits()
+        self.modifyMakefile()
+
+    def modifyMakefile(self):
+        f = self._filename.split('.')
+        searchStr = f[0]
+        newMF = []
+        nf = self._newFile.split('.')
+        replacementStr = nf[0]
+        try:
+            with open("Makefile", 'r') as mf:
+                origMF = mf.read().splitlines()
+                for line in origMF:
+                    if searchStr in line:
+                        line = line.replace(searchStr, replacementStr)
+                    newMF.append(line)
+            with open("Makefile", 'w') as mf:
+                for line in newMF:
+                    mf.write(line + '\n')
+            #not sure if i want to leave this block here, just most convenient
+            #or if this is even necessary
+            ofile = replacementStr + ".o"
+            with open (ofile, 'w') as of:
+                of.write('\n')
+        except:
+            print(txtColors.FAIL + "Unable to modify Makefile.\n" + txtColors.WARNING + "Ensure that a Makefile is present in the current to be modified by AVT")
 
     def writeIFuncBits(self):
-        #print("writeIFuncBits called")
+        # with open("avt_resolverTemplate.c", 'r') as template:
+        #     t = template.read().splitlines()
+        newIfuncBits:list = []
 
-        with open("avt_resolverTemplate.c", 'r') as template:
-            t = template.read().splitlines()
-            newIfuncBits:list = []
-
-            for line in t:
-                if "foo" in line:
-                    line = line.replace("foo", self._functionName)
-                    #print(line)
-                newIfuncBits.append(line)
-            self.writeFunction(newIfuncBits)
+        for line in resolverTemplate:
+            if "foo" in line:
+                line = line.replace("foo", self._functionName)
+            newIfuncBits.append(line)
+        self.writeFunction(newIfuncBits)
 
     def editFunction(self, functionLines:list, vectorizationSuffix:str = ""):
         declaration = functionLines[0]
@@ -84,7 +121,6 @@ class autoVectorTool:
 
         if not self._functionName:
             self._functionName = declPts2[1]
-        print(declParts)
         declPts2[1] = "*" + declPts2[1]
         declParts[0] = declPts2[0] + " " + declPts2[1]
         declParts[0] += vectorizationSuffix
@@ -94,9 +130,10 @@ class autoVectorTool:
 
         return functionLines
 
-    def writeFunction(self, functionLines:list):
+    def writeFunction(self, functionLines:list, pragmaStatement:str = ""):
         with open(self._newFile, 'a') as file:
             file.write('\n')
+            file.write(pragmaStatement + '\n')
             for line in functionLines:
                 file.write(line + '\n')
 
@@ -118,10 +155,10 @@ class autoVectorTool:
                         if "(" in line and "void" in line:
                             isFunctionLine = True
                             functionLines.append(line)
-                        if "{" in line:
-                            isFunctionLine = True
-                            openBrackets = openBrackets + 1
-                            functionLines.append(line)
+                        # if "{" in line:
+                        #     isFunctionLine = True
+                        #     openBrackets = openBrackets + 1
+                        #     functionLines.append(line)
                     else:
                         if "{" in line:
                             openBrackets = openBrackets + 1
@@ -137,38 +174,23 @@ class autoVectorTool:
                 return functionLines
         except:
             print(txtColors.FAIL + "\nERROR: Unable to retrieve function in file \"" + self._filename +  "\"\n" + txtColors.STD)
-            print(txtColors.WARNING + "Ensure that the file called is correct and that the file exists in the current directory" + txtColors.STD)
+            print(txtColors.WARNING + "Ensure that the file name is correct and that the file exists in the current directory" + txtColors.STD)
 
     def makeFunctionLineList(self, functionLines:list):
         return functionLines       
 #==============================================================================#
 
-class avtFactorum:
-    def __init__(self, filename:str):
-        self._main = filename
-        self._files = self.getImportFiles()
 
-    def getImportFiles(self):
-        #get imported user files (ie Function.c) from main
-        #return list of said files
-        pass
-
-    def buildMakefile(self):
-        # create the Makefile
-        pass
-
-    def run():
-        #for each file in _files
-        #  -build and run an avt
-        #buildMakefile()
-        #run maker file
-        pass
-
-
+#Implementation 1st pass
+#ONLY NEEDS TO WORK WITH TEST CODE!!!
 if __name__ == "__main__":
-    #TODO - update to use avtFactorium once completed
     if len(sys.argv) < 2:
         raise Exception(txtColors.FAIL + "To use the avt tool you must call it with a file like so:\n" + txtColors.WARNING + "      " + "<py avt function.c>\n" + txtColors.STD)
     else:
         avt = autoVectorTool(sys.argv[1])
         avt.run()
+        p = subprocess.Popen('make', stdout=subprocess.PIPE)
+        for line in p.stdout:
+            print(line)
+        p.wait()
+
