@@ -39,9 +39,9 @@ resolverTemplate = [   '#include <sys/auxv.h>',
 
 #GCC target pragmas
 class pragmas:
-    SVE2 = "#pragma GCC target \"arch=armv8-a+sve2\""
-    SVE = "#pragma GCC target \"arch=armv8-a+sve\""
-    NonSVE = "#pragma GCC target \"arch=rmv8-a\""
+    SVE2 = "#pragma GCC target \"march=armv8-a+sve2\""
+    SVE = "#pragma GCC target \"march=armv8-a+sve\""
+    NonSVE = "#pragma GCC target \"march=rmv8-a\""
 
 #color codes
 class txtColors:
@@ -179,7 +179,7 @@ class autoVectorTool:
     def makeFunctionLineList(self, functionLines:list):
         return functionLines       
 #==============================================================================#
-
+    
 
 #Implementation 1st pass
 #ONLY NEEDS TO WORK WITH TEST CODE!!!
