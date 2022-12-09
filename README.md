@@ -10,4 +10,10 @@ AVT can also modify a related Makefile and call make in the current directory by
 
 ## Limitations
 
--Only works with function with a void return type
+-Writes code for NonSVE, SVE, and SVE2. Is not granular.
+
+## Update Log
+
+-Dec 9: AVT is now able to handle multiple functions in a target file
+
+-Dec 9: AVT can now handle all return types

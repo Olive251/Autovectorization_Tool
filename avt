@@ -242,7 +242,7 @@ class autoVectorTool:
             file.write('#include <sys/auxv.h>\n')
 
             for function in self._functions:
-                file.write("\n//" + function._functName + "============================================//\n")
+                file.write("\n//" + function._functName + " ============================================================================//\n")
                 for line in function.getNewFunction(1):
                     file.write(line + '\n')
                 for line in function.getNewFunction(2):
