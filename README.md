@@ -8,6 +8,8 @@ OR a copy can be placed in your desired directory and called using "py" or "pyth
 
 AVT can also modify a related Makefile and call make in the current directory by adding "-m" to the call arguments
 
+> ie: "py avt helloWorld.c -m"
+
 ## Limitations
 
 -Writes code for NonSVE, SVE, and SVE2. Is not granular.
