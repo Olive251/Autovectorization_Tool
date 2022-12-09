@@ -259,7 +259,8 @@ class autoVectorTool:
                     self._origContent.append(line)
         except:            
             print(txtColors.FAIL + "\nERROR: Unable to retrieve file content from\"" + self._filename +  "\"\n")
-            print(txtColors.WARNING + "Ensure that the file name is correct and that the file is in the current directory" + txtColors.STD) 
+            print(txtColors.WARNING + "Ensure that the file name is correct and that the file is in the current directory" + txtColors.STD)
+            sys.exit() 
 
     def getFunctions(self):
         try:
@@ -288,7 +289,8 @@ class autoVectorTool:
                         functionLines.append(line)
         except:
             print(txtColors.FAIL + "\nERROR: Unable to retrieve function in file content for\"" + self._filename +  "\"\n")
-            print(txtColors.WARNING + "Ensure that the file name is correct and that the file contains functions" + txtColors.STD)     
+            print(txtColors.WARNING + "Ensure that the file name is correct and that the file contains functions" + txtColors.STD)  
+            sys.exit()   
 
     def confirmNewFile(self):
         if os.path.exists(self._newFile):
