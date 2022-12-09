@@ -1,23 +1,5 @@
 #!/usr/bin/env python
 
-#TODO
-# Rework
-# -Need to do some reworking for final part:
-# -avt should open the main.c
-#   -THEN do what run currently does for each user created imported file
-#
-# -HOW TO GET IMPORTED FILES
-# header file names don't neccessarily correlate to their source file name
-# Might be better to do it with all *.c files in the directory that aren't main?
-#   Buuuut then that fails to consider programs that don't have main.c as their entry
-#   Could search through every *.c file that doesn't contain a main(){}? 
-# Easiest way to do this would be to make a class that uses instances of current AVT for each include
-
-#LIMITATIONS:
-#The tool can only handle a single function in a single file presently.
-#The target file should have a related Makefile in the same directory for the tool to modify
-#Function in target file must be a void return type
-
 import sys
 import subprocess
 import os.path
