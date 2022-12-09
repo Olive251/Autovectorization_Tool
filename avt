@@ -137,13 +137,6 @@ class autoVectorTool:
         self._functions = []
         self.setOrigContent()
         self.getFunctions()
-        fNameParts = filename.split(".")
-        self._newFile = fNameParts[0] + "_AVT." + fNameParts[1]
-        self._ifuncBits = ifuncWriter()
-        self._origContent = []
-        self._functions = []
-        self.setOrigContent()
-        self.getFunctions()
         
     def run(self):
         for function in self._functions:
