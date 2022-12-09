@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import sys
 import subprocess
 import os.path
@@ -137,13 +136,6 @@ class autoVectorTool:
         self._functions = []
         self.setOrigContent()
         self.getFunctions()
-        fNameParts = filename.split(".")
-        self._newFile = fNameParts[0] + "_AVT." + fNameParts[1]
-        self._ifuncBits = ifuncWriter()
-        self._origContent = []
-        self._functions = []
-        self.setOrigContent()
-        self.getFunctions()
         
     def run(self):
         for function in self._functions:
@@ -184,6 +176,7 @@ class autoVectorTool:
             openBrackets = 0
             for line in self._origContent:
                 if isFunctionLine is False:
+                    #TODO -make this more secure. Use regex or something. This could easily catch non-functions too
                     if "(" in line:
                         isFunctionLine = True
                         functionLines.append(line)
