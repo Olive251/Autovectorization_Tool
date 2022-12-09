@@ -62,28 +62,80 @@ nonsve = '_NonSVE'
 sve = '_SVE'
 sve2 = '_SVE2'
 
+class functionConverter:
+    def __init__(self, functLines:list):
+        print("new funct converter")
+        self._functName = ""
+        self._returnType = ""
+        self._functLines = functLines
+        self.setFunctInfo()
+
+    def setFunctInfo(self):
+        declaration = self._functLines[0]
+
+        declParts = declaration.split("(")
+        declPts2 = declParts[0].split(" ")
+
+        self._returnType = declPts2[0]
+        self._functName = declPts2[1]
+
+    def getNewFunction(self, avType:int):
+        vectorizationSuffix = ""
+        pragma = ""
+        if avType == 1:
+            vectorizationSuffix = nonsve
+            pragma = pragmas.NonSVE
+        elif avType == 2:
+            vectorizationSuffix = sve
+            pragma = pragmas.SVE
+        elif avType == 3:
+            vectorizationSuffix = sve2
+            pragma = pragmas.SVE2
+        else:
+            print(txtColors.FAIL + "ERROR: getNewFunction received an invalid avType ID. Must be between 1-3" + txtColors.STD)
+            sys.exit()
+        
+        return self.editFunction(vectorizationSuffix, pragma)
+
+    def editFunction(self, vecSuf:str, pragma:str):
+        nFunc = [""]
+        nFunc[0] = pragma
+        for line in self._functLines:
+            nFunc.append(line)
+
+        declaration = nFunc[1]
+        declParts = declaration.split("(")
+        
+        declParts[0] = self._returnType + " *" + self._functName
+        declParts[0] += vecSuf
+
+        newDeclaration = declParts[0] + "(" + declParts[1]
+        nFunc[1] = newDeclaration
+
+        return nFunc
+    
+    def getOrigFunction(self):
+        return self._functLines
+
+
+
 
 class autoVectorTool:
     def __init__(self, filename:str):
         self._filename = filename
         self._newFile = ""
-        self.orig_functionLines = self.getFunction()
-        self._functionName = ""
+        self._functions = self.getFunctions()
         
     def run(self):
-        functSVE2 = self.editFunction(self.orig_functionLines.copy(), sve2)
-        functSVE = self.editFunction(self.orig_functionLines.copy(), sve)
-        functNonSVE = self.editFunction(self.orig_functionLines.copy(), nonsve)
-
         fNameParts = self._filename.split(".")
         self._newFile = fNameParts[0] + "_AVT." + fNameParts[1]
 
-        self.writeFunction(functSVE2, pragmas.SVE2)
-        self.writeFunction(functSVE, pragmas.SVE)
-        self.writeFunction(functNonSVE, pragmas.NonSVE)
 
-        self.writeIFuncBits()
-        #self.modifyMakefile() #removing to call seperately based on user input
+        for function in self._functions:
+            self.writeFunction(function.getNewFunction(1))
+            self.writeFunction(function.getNewFunction(2))
+            self.writeFunction(function.getNewFunction(3))
+            self.writeIFuncBits(function)
 
     def modifyMakefile(self):
         f = self._filename.split('.')
@@ -104,76 +156,60 @@ class autoVectorTool:
         except:
             print(txtColors.FAIL + "Unable to modify Makefile.\n" + txtColors.WARNING + "Ensure that a Makefile is present in the current to be modified by AVT" + txtColors.STD)
 
-    def writeIFuncBits(self):
+    def writeIFuncBits(self, function:functionConverter):
         newIfuncBits:list = []
-
+        fName = function._functName
         for line in resolverTemplate:
             if "foo" in line:
-                line = line.replace("foo", self._functionName)
+                line = line.replace("foo", fName)
             newIfuncBits.append(line)
         self.writeFunction(newIfuncBits)
 
-    def editFunction(self, functionLines:list, vectorizationSuffix:str = ""):
-        declaration = functionLines[0]
-
-        declParts = declaration.split("(")
-        declPts2 = declParts[0].split(" ")
-
-        if not self._functionName:
-            self._functionName = declPts2[1]
-        declPts2[1] = "*" + declPts2[1]
-        declParts[0] = declPts2[0] + " " + declPts2[1]
-        declParts[0] += vectorizationSuffix
-
-        newDeclaration = declParts[0] + "(" + declParts[1]
-        functionLines[0] = newDeclaration
-
-        return functionLines
-
-    def writeFunction(self, functionLines:list, pragmaStatement:str = ""):
+    def writeFunction(self, functionLines:list):
         with open(self._newFile, 'a') as file:
             file.write('\n')
-            file.write(pragmaStatement + '\n')
             for line in functionLines:
                 file.write(line + '\n')
 
     # Currently: Can retrieve a single function as a list of strings
     # TODO: utilize makeFunctionLineList() to be able to return a list of lists of function lines
     # ...(to clarify, return an array of functions broken down by lines)
-    def getFunction(self):
+    def getFunctions(self):
         try:
             with open (self._filename, 'r') as src:
+                
                 src_orig = src.read().splitlines()
 
+                functions:list = []
                 functionLines:list = []
 
                 isFunctionLine = False
                 openBrackets = 0
-
                 for line in src_orig:
+                    
                     if isFunctionLine is False:
                         if "(" in line and "void" in line:
                             isFunctionLine = True
                             functionLines.append(line)
+                        if "{" in line:
+                            openBrackets += 1
                     else:
                         if "{" in line:
-                            openBrackets = openBrackets + 1
+                            openBrackets += 1
                             functionLines.append(line)
                         elif "}" in line:
-                            openBrackets = openBrackets - 1
+                            openBrackets -= 1
                             functionLines.append(line)
                             if openBrackets == 0:
                                 isFunctionLine = False
-                                break
+                                functions.append(functionConverter(functionLines))
+                                functionLines = []
                         else:
                             functionLines.append(line)
-                return functionLines
+                return functions
         except:
             print(txtColors.FAIL + "\nERROR: Unable to retrieve function in file \"" + self._filename +  "\"\n")
-            print(txtColors.WARNING + "Ensure that the file name is correct and that the file exists in the current directory" + txtColors.STD)
-
-    def makeFunctionLineList(self, functionLines:list):
-        return functionLines       
+            print(txtColors.WARNING + "Ensure that the file name is correct and that the file exists in the current directory" + txtColors.STD)     
 
     def confirmNewFile(self):
         if os.path.exists(self._newFile):
@@ -186,8 +222,7 @@ def printInvalidOptionsMessage():
     print(txtColors.FAIL + "Invalid options included in AVT call")
     print(txtColors.WARNING + "Use < py avt -h > to see available options" + txtColors.STD)
     
-#Implementation 1st pass
-#ONLY NEEDS TO WORK WITH TEST CODE!!!
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         raise Exception(txtColors.FAIL + 
