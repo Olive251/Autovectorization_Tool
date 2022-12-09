@@ -203,7 +203,7 @@ class autoVectorTool:
                     else:
                         functionLines.append(line)
         except:
-            print(txtColors.FAIL + "\nERROR: Unable to retrieve function in file content for\"" + self._filename +  "\"\n")
+            print(txtColors.FAIL + "\nERROR: Unable to retrieve function in file content for \"" + self._filename +  "\"\n")
             print(txtColors.WARNING + "Ensure that the file name is correct and that the file contains functions" + txtColors.STD)  
             sys.exit()   
 
