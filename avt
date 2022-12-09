@@ -127,9 +127,101 @@ class functionConverter:
         return self._functLines
 #=====================================================================================================================================#
 
+class ifuncWriter:
+    def __init__(self):
+        self._resolvers = []
+        self._main = resolverTemplate.main
+
+    def __add__(self, functionName:str):
+        resolver = ["//resolver for " + functionName]
+        for line in resolverTemplate.resolver:
+            line = line.replace("foo", functionName)
+            resolver.append(line)
+        self._resolvers.append(resolver)
+        self.modifyMain(functionName)
+
+    def modifyMain(self, functionName:str):
+        self._main.append('    ' + functionName + '();')
+
+    def getIfuncBits(self):
+        self._main.append('}')
+        ifuncBits = []
+        for resolver in self._resolvers:
+            for line in resolver:
+                ifuncBits.append(line + '\n')
+            ifuncBits.append('\n')
+        ifuncBits.append('\n')
+        for line in self._main:
+            ifuncBits.append(line + '\n')
+
+        return ifuncBits
+#=====================================================================================================================================#
+
+class functionConverter:
+    def __init__(self, functLines:list):
+        self._functName = ""
+        self._returnType = ""
+        self._functLines = functLines
+        self.setFunctInfo()
+
+    def setFunctInfo(self):
+        declaration = self._functLines[0]
+
+        declParts = declaration.split("(")
+        declPts2 = declParts[0].split(" ")
+
+        self._returnType = declPts2[0]
+        self._functName = declPts2[1]
+
+    def getNewFunction(self, avType:int):
+        vectorizationSuffix = ""
+        pragma = ""
+        if avType == 1:
+            vectorizationSuffix = nonsve
+            pragma = pragmas.NonSVE
+        elif avType == 2:
+            vectorizationSuffix = sve
+            pragma = pragmas.SVE
+        elif avType == 3:
+            vectorizationSuffix = sve2
+            pragma = pragmas.SVE2
+        else:
+            print(txtColors.FAIL + "ERROR: getNewFunction received an invalid avType ID. Must be between 1-3" + txtColors.STD)
+            sys.exit()
+        
+        return self.editFunction(vectorizationSuffix, pragma)
+
+    def editFunction(self, vecSuf:str, pragma:str):
+        nFunc = [""]
+        nFunc[0] = pragma
+        for line in self._functLines:
+            nFunc.append(line)
+
+        declaration = nFunc[1]
+        declParts = declaration.split("(")
+        
+        declParts[0] = self._returnType + " *" + self._functName
+        declParts[0] += vecSuf
+
+        newDeclaration = declParts[0] + "(" + declParts[1]
+        nFunc[1] = newDeclaration
+
+        return nFunc
+    
+    def getOrigFunction(self):
+        return self._functLines
+#=====================================================================================================================================#
+
 class autoVectorTool:
     def __init__(self, filename:str):
         self._filename = filename
+        fNameParts = filename.split(".")
+        self._newFile = fNameParts[0] + "_AVT." + fNameParts[1]
+        self._ifuncBits = ifuncWriter()
+        self._origContent = []
+        self._functions = []
+        self.setOrigContent()
+        self.getFunctions()
         fNameParts = filename.split(".")
         self._newFile = fNameParts[0] + "_AVT." + fNameParts[1]
         self._ifuncBits = ifuncWriter()
