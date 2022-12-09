@@ -69,7 +69,6 @@ class ifuncWriter:
         for line in self._main:
             ifuncBits.append(line + '\n')
 
-
         return ifuncBits
 #=====================================================================================================================================#
 
@@ -144,20 +143,21 @@ class autoVectorTool:
             self._ifuncBits + function._functName
         
         self.writeNewFunctFile()
+        self.confirmNewFile()
         
     def writeNewFunctFile(self):
         with open (self._newFile, 'w') as file:
             file.write('#include <sys/auxv.h>\n')
 
             for function in self._functions:
-                file.write('\n')
-                file.write("//" + function._functName + "============================================//\n")
+                file.write("\n//" + function._functName + "============================================//\n")
                 for line in function.getNewFunction(1):
                     file.write(line + '\n')
                 for line in function.getNewFunction(2):
                     file.write(line + '\n')
                 for line in function.getNewFunction(3):
                     file.write(line + '\n')
+
             file.writelines(self._ifuncBits.getIfuncBits())
 
     def setOrigContent(self):
@@ -200,9 +200,9 @@ class autoVectorTool:
 
     def confirmNewFile(self):
         if os.path.exists(self._newFile):
-            print(txtColors.GREEN + "fileToArray succesfully created" + "\'" + self._output + "\'" + txtColors.STD)
+            print(txtColors.GREEN + "fileToArray succesfully created " + "\'" + self._newFile + "\'" + txtColors.STD)
         else:
-            print(txtColors.FAIL + "AVT unable to confirm " + self._output + " was sucessfully created." + txtColors.STD)
+            print(txtColors.FAIL + "AVT unable to confirm " + self._newFile + " was sucessfully created." + txtColors.STD)
 
     def modifyMakefile(self):
         f = self._filename.split('.')
