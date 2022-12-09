@@ -233,6 +233,9 @@ class autoVectorTool:
             print(txtColors.FAIL + "Unable to modify Makefile.\n" + txtColors.WARNING + "Ensure that a Makefile is present in the current to be modified by AVT" + txtColors.STD)
 #=====================================================================================================================================#
 
+#TODO
+# add another option so the user can put in -sve, -sve2, or -nsve to select vectorization type
+
 def printInvalidOptionsMessage():
     print(txtColors.FAIL + "Invalid options included in AVT call")
     print(txtColors.WARNING + "Use < py avt -h > to see available options" + txtColors.STD)
