@@ -2,6 +2,7 @@
 import sys
 import subprocess
 import os.path
+import re
 
 class resolverTemplate:
     resolver = [
@@ -31,9 +32,10 @@ class pragmas:
 
 #color codes
 class txtColors:
-    FAIL = '\033[91m'
-    WARNING = '\033[93m'
+    RED = '\033[91m'
+    YELLOW = '\033[93m'
     GREEN = '\033[92m'
+    BLUE = '\033[94m'
     STD = '\033[0m'
 
 # Function suffixes
@@ -77,6 +79,9 @@ class functionConverter:
     def editFunction(self, vecSuf:str, pragma:str):
         nFunc = []
         nFunc.append(pragma + '\n')
+        if ')' not in self._functLines[0]:
+            self._functLines[0] += self._functLines[1]
+            self._functLines.pop(1)
         for line in self._functLines:
             nFunc.append(line + '\n')
 
@@ -99,7 +104,7 @@ class functionConverter:
 class ifuncWriter:
     def __init__(self):
         self._resolvers = []
-        self._main = resolverTemplate.main
+        self._main = resolverTemplate.main.copy()
 
     def __add__(self, functionName:str):
         resolver = ["//resolver for " + functionName]
@@ -137,17 +142,17 @@ class autoVectorTool:
         self.setOrigContent()
         self.getFunctions()
         
-    def run(self):
+    def run(self, avTypes:list):
         for function in self._functions:
             self._ifuncBits + function._functName
         
-        self.writeNewFunctFile()
+        self.writeNewFile(avTypes)
         self.confirmNewFile()
         
-    def writeNewFunctFile(self, *avType:int):
+    def writeNewFile(self, avTypes:list):
         with open (self._newFile, 'w') as file:
             file.write('#include <sys/auxv.h>\n')
-            if len(avType) == 0:
+            if avTypes[0] == 0:
                 for function in self._functions:
                     file.write("\n//" + function._functName + " ============================================================================//\n")
                     file.writelines(function.getNewFunction(1))
@@ -155,7 +160,7 @@ class autoVectorTool:
                     file.writelines(function.getNewFunction(3))
             else:
                 for function in self._functions:
-                    for av in avType:
+                    for av in avTypes:
                         file.writelines(function.getNewFunction(av))
             file.writelines(self._ifuncBits.getIfuncBits())
 
@@ -165,11 +170,13 @@ class autoVectorTool:
                 for line in src.read().splitlines():
                     self._origContent.append(line)
         except:            
-            print(txtColors.FAIL + "\nERROR: Unable to retrieve file content from\"" + self._filename +  "\"\n")
-            print(txtColors.WARNING + "Ensure that the file name is correct and that the file is in the current directory" + txtColors.STD)
+            print(txtColors.RED + "\nERROR: Unable to retrieve file content from\"" + self._filename +  "\"\n")
+            print(txtColors.YELLOW + "Ensure that the file name is correct and that the file is in the current directory" + txtColors.STD)
             sys.exit() 
 
     def getFunctions(self):
+        functDecPattern1 = re.compile(r"[A-Za-z0-9]+\s+[A-Za-z0-9]", re.IGNORECASE)
+
         try:
             functionLines:list = []
             isFunctionLine = False
@@ -178,8 +185,10 @@ class autoVectorTool:
                 if isFunctionLine is False:
                     #TODO -make this more secure. Use regex or something. This could easily catch non-functions too
                     if "(" in line:
-                        isFunctionLine = True
-                        functionLines.append(line)
+                        tokens = line.split("(")
+                        if functDecPattern1.match(tokens[0]): 
+                            isFunctionLine = True
+                            functionLines.append(line)
                     if "{" in line:
                         openBrackets += 1
                 else:
@@ -196,15 +205,15 @@ class autoVectorTool:
                     else:
                         functionLines.append(line)
         except:
-            print(txtColors.FAIL + "\nERROR: Unable to retrieve function in file content for \"" + self._filename +  "\"\n")
-            print(txtColors.WARNING + "Ensure that the file name is correct and that the file contains functions" + txtColors.STD)  
+            print(txtColors.RED + "\nERROR: Unable to retrieve function in file content for \"" + self._filename +  "\"\n")
+            print(txtColors.YELLOW + "Ensure that the file name is correct and that the file contains functions" + txtColors.STD)  
             sys.exit()   
 
     def confirmNewFile(self):
         if os.path.exists(self._newFile):
             print(txtColors.GREEN + "AVT succesfully created " + "\'" + self._newFile + "\'" + txtColors.STD)
         else:
-            print(txtColors.FAIL + "AVT unable to confirm " + self._newFile + " was sucessfully created." + txtColors.STD)
+            print(txtColors.RED + "AVT unable to confirm " + self._newFile + " was sucessfully created." + txtColors.STD)
 
     def modifyMakefile(self):
         f = self._filename.split('.')
@@ -223,11 +232,8 @@ class autoVectorTool:
                 for line in newMF:
                     mf.write(line + '\n')
         except:
-            print(txtColors.FAIL + "Unable to modify Makefile.\n" + txtColors.WARNING + "Ensure that a Makefile is present in the current to be modified by AVT" + txtColors.STD)
+            print(txtColors.RED + "Unable to modify Makefile.\n" + txtColors.YELLOW + "Ensure that a Makefile is present in the current to be modified by AVT" + txtColors.STD)
 #=====================================================================================================================================#
-
-#TODO
-# add another option so the user can put in -sve, -sve2, or -nsve  or multiple to select vectorization type
 
 class avtFactorum:
     def __init__(self, args):
@@ -238,51 +244,59 @@ class avtFactorum:
         self.handleArgs(args)
         self.makeTools()
 
+    def run(self):
+        if '-h' in self._options:
+            self.help()
 
-    def handleArgs(args):
-        #skip args[0]
-        #for args
-            #if arg starts with "-", add it to options
-            #if it does not start with "-", add it to files
-        pass
+        avTypes:int = []
+        if '-nsve' in self._options:
+            avTypes.append(1)
+        if '-sve' in self._options:
+            avTypes.append(2)
+        if '-sve2' in self._options:
+            avTypes.append(3)
+
+        for tool in self._toolLines:
+            tool.run(avTypes)
+
+    def handleArgs(self, args):
+        args.pop(0)
+        for arg in args:
+            if arg.startswith('-'):
+                self._options.append(arg)
+            else:
+                self._files.append(arg)
 
     def makeTools(self):
         for file in self._files:
             self._toolLines.append(autoVectorTool(file))
-    
 
-def printInvalidOptionsMessage():
-    print(txtColors.FAIL + "Invalid options included in AVT call")
-    print(txtColors.WARNING + "Use < py avt -h > to see available options" + txtColors.STD)
+    def runMake(self):
+        p = subprocess.Popen('make', stdout=subprocess.PIPE)
+        print (txtColors.BLUE + "Make status:")
+        for line in p.stdout:
+            print(line)
+        p.wait()
+
+    def printInvalidOptionsMessage(self):
+        print(txtColors.RED + "Invalid options included in AVT call")
+        print(txtColors.YELLOW + "Use < py avt -h > to see available options" + txtColors.STD)
+
+    def noFileErr(self):
+        raise Exception(txtColors.RED + 
+            "To use the avt tool you must call it with a file like so:\n" + 
+            txtColors.YELLOW + "      " + "< py avt function.c >\n" +
+            "OR       < py avt -h > to see optional options" +
+            txtColors.STD)
+
+    def help(self):
+        print(txtColors.BLUE + "\nAutoVectorTool options:")
+        print(txtColors.GREEN + "\n-h                    :  display help menu; view all options" + txtColors.STD)
+        print(txtColors.GREEN + "\n-m                    :  modify an existing makefile and call make" + txtColors.STD)
+        print(txtColors.GREEN + "\n-nsve, -sve, -sve2    :  make changes for specific autovectorization type. (can call multiple target options)" + txtColors.STD)
+        print('')
+        sys.exit()
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        raise Exception(txtColors.FAIL + 
-        "To use the avt tool you must call it with a file like so:\n" + 
-        txtColors.WARNING + "      " + "< py avt function.c >\n" +
-        "OR       < py avt -h > to see optional options" +
-        txtColors.STD)
-    elif len(sys.argv) < 3:
-        if sys.argv[1] == '-h':
-            print("AutoVectorTool options:")
-            print(txtColors.GREEN + "\n-m   :   modify an existing makefile and call make" + txtColors.STD)
-            print('')
-            sys.exit()
-        else:
-            avt = autoVectorTool(sys.argv[1])
-            avt.run()
-            sys.exit()
-    elif len(sys.argv) < 4:
-        if sys.argv[2] == '-m':
-            avt = autoVectorTool(sys.argv[1])
-            avt.run()
-            p = subprocess.Popen('make', stdout=subprocess.PIPE)
-            for line in p.stdout:
-                print(line)
-            p.wait()
-        else:
-            printInvalidOptionsMessage()
-    elif len(sys.argv) > 3:
-       printInvalidOptionsMessage()
-    else:
-        printInvalidOptionsMessage()
+    factorum = avtFactorum(sys.argv)
+    factorum.run()

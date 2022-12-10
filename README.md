@@ -12,10 +12,16 @@ AVT can also modify a related Makefile and call make in the current directory by
 
 ## Limitations
 
--Writes code for NonSVE, SVE, and SVE2. Is not granular.
+-Only for c and c++ files
+
+-Only able to be used in aarch64 systems
 
 ## Update Log
 
--Dec 9: AVT is now able to handle multiple functions in a target file
+-Dec 9:
+> AVT is now able to handle multiple functions in a target file
+>AVT can now handle all return types
 
--Dec 9: AVT can now handle all return types
+-Dec 10:
+> User can now target multiple files
+> User can now select which autovectorization type to utilize with ifunc
