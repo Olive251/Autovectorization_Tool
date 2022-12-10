@@ -1,25 +1,50 @@
 #!/usr/bin/env python
-
 import sys
 import subprocess
 import os.path
+import re
 
 class resolverTemplate:
-    resolver = [
-    'static void (*resolve_foo(void)) {',
-    '    long hwcaps = getauxval(AT_HWCAP);',
-    '    long hwcaps2 = getauxval(AT_HWCAP2);',
-    '',
-    '    if (hwcaps2 & HWCAP2_SVE2)',
-    '        return foo_SVE2;',
-    '    else if (hwcaps & HWCAP_SVE)',
-    '        return foo_SVE;',
-    '    else ',
-    '        return foo_NonSVE;',
-    '}',
-    '',
-    'void *foo() __attribute__((ifunc("resolve_foo")));',
+    declaration = 'static void (*resolve_foo(void)) {'
+    resolverVars = [
+        '    long hwcaps = getauxval(AT_HWCAP);',
+        '    long hwcaps2 = getauxval(AT_HWCAP2);',
+        ''
     ]
+    ifElseAll = [
+        '    if (hwcaps2 & HWCAP2_SVE2)',
+        '        return foo_SVE2;',
+        '    else if (hwcaps & HWCAP_SVE)',
+        '        return foo_SVE;',
+        '    else ',
+        '        return foo_NonSVE;'
+    ]
+    if_SVE2 = [
+        '    if (hwcaps2 & HWCAP2_SVE2)',
+        '        return foo_SVE2;'
+    ]
+    if_SVE = [
+        '    if (hwcaps & HWCAP_SVE)',
+        '        return foo_SVE;'
+    ]
+    elif_SVE = [
+        '    else if (hwcaps & HWCAP_SVE)',
+        '        return foo_SVE;'
+    ]
+    else_x = [
+        '    else',
+        '        printf(\'System is not capable of select AVT option. Unable to resolve ifunc.\')'
+    ]
+    else_NonSVE = [
+        '    else ',
+        '        return foo_NonSVE;'
+    ]
+    NonSVE = '   return foo_NonSVE'
+    resolverCall = [
+        '',
+        'void *foo() __attribute__((ifunc("resolve_foo")));',
+    ]
+
     main = [
         'int main() {'
     ]
@@ -32,9 +57,10 @@ class pragmas:
 
 #color codes
 class txtColors:
-    FAIL = '\033[91m'
-    WARNING = '\033[93m'
+    RED = '\033[91m'
+    YELLOW = '\033[93m'
     GREEN = '\033[92m'
+    BLUE = '\033[94m'
     STD = '\033[0m'
 
 # Function suffixes
@@ -71,16 +97,18 @@ class functionConverter:
             vectorizationSuffix = sve2
             pragma = pragmas.SVE2
         else:
-            print(txtColors.FAIL + "ERROR: getNewFunction received an invalid avType ID. Must be between 1-3" + txtColors.STD)
-            sys.exit()
+            raise TypeError("Bad value passed into getNewFunction()")
         
         return self.editFunction(vectorizationSuffix, pragma)
 
     def editFunction(self, vecSuf:str, pragma:str):
-        nFunc = [""]
-        nFunc[0] = pragma
+        nFunc = []
+        nFunc.append(pragma + '\n')
+        if ')' not in self._functLines[0]:
+            self._functLines[0] += self._functLines[1]
+            self._functLines.pop(1)
         for line in self._functLines:
-            nFunc.append(line)
+            nFunc.append(line + '\n')
 
         declaration = nFunc[1]
         declParts = declaration.split("(")
@@ -90,6 +118,7 @@ class functionConverter:
 
         newDeclaration = declParts[0] + "(" + declParts[1]
         nFunc[1] = newDeclaration
+        nFunc.append('\n')
 
         return nFunc
     
@@ -98,20 +127,66 @@ class functionConverter:
 #=====================================================================================================================================#
 
 class ifuncWriter:
-    def __init__(self):
+    def __init__(self, avTypes):
+        self._avTypes = avTypes
         self._resolvers = []
-        self._main = resolverTemplate.main
+        self._main = resolverTemplate.main.copy()
 
     def __add__(self, functionName:str):
-        resolver = ["//resolver for " + functionName]
-        for line in resolverTemplate.resolver:
-            line = line.replace("foo", functionName)
-            resolver.append(line)
-        self._resolvers.append(resolver)
-        self.modifyMain(functionName)
-
-    def modifyMain(self, functionName:str):
         self._main.append('    ' + functionName + '();')
+
+        resolver = ["//resolver for " + functionName]
+        decl = resolverTemplate.declaration.replace("foo", functionName)
+        resolver.append(decl)
+        resolver.extend(resolverTemplate.resolverVars)
+
+        if len(self._avTypes) == 0 or all(val in self._avTypes for val in [3,2,1]):
+            print('ifuncWriter: making standard resolver')
+            for line in resolverTemplate.ifElseAll.copy():
+                resolver.append(line.replace("foo", functionName))
+
+        elif all(val in self._avTypes for val in [3,2]):
+            print('ifuncWriter: making sve2+sve resolver')
+            for line in resolverTemplate.if_SVE2:
+                resolver.append(line.replace("foo", functionName))
+            for line in resolverTemplate.elif_SVE:
+                resolver.append(line.replace("foo", functionName))
+            resolver.extend(resolverTemplate.else_x)
+
+        elif all(val in self._avTypes for val in [3,1]):
+            print('ifuncWriter: making sve2+nsve resolver')
+            for line in resolverTemplate.if_SVE2:
+                resolver.append(line.replace("foo", functionName))
+            for line in resolverTemplate.else_NonSVE:
+                resolver.append(line.replace("foo", functionName))
+
+        elif all(val in self._avTypes for val in [2,1]):
+            print('ifuncWriter: making sve+nsve resolver')
+            for line in resolverTemplate.if_SVE:
+                resolver.append(line.replace("foo", functionName))
+            for line in resolverTemplate.else_NonSVE:
+                resolver.append(line.replace("foo", functionName))
+
+        elif self._avTypes[0] == 2:
+            for line in resolverTemplate.if_SVE:
+                resolver.append(line.replace("foo", functionName))
+            resolver.extend(resolverTemplate.else_x)
+
+        elif self._avTypes[0] == 3:
+            for line in resolverTemplate.if_SVE2:
+                resolver.append(line.replace("foo", functionName))
+            resolver.extend(resolverTemplate.else_x)
+
+        elif self._avTypes[0] == 1:
+            resolver.append(resolverTemplate.NonSVE.replace("foo", functionName))
+
+        else:
+            raise TypeError("Invalid parameter passed to ifuncWriter.__add__()")
+
+        resolver.append('}')
+        for line in resolverTemplate.resolverCall.copy():
+            resolver.append(line.replace("foo", functionName))
+        self._resolvers.append(resolver)
 
     def getIfuncBits(self):
         self._main.append('}')
@@ -132,32 +207,33 @@ class autoVectorTool:
         self._filename = filename
         fNameParts = filename.split(".")
         self._newFile = fNameParts[0] + "_AVT." + fNameParts[1]
-        self._ifuncBits = ifuncWriter()
         self._origContent = []
         self._functions = []
         self.setOrigContent()
         self.getFunctions()
         
-    def run(self):
+    def run(self, avTypes:list):
+        self._ifuncBits = ifuncWriter(avTypes)
         for function in self._functions:
             self._ifuncBits + function._functName
         
-        self.writeNewFunctFile()
+        self.writeNewFile(avTypes)
         self.confirmNewFile()
         
-    def writeNewFunctFile(self):
+    def writeNewFile(self, avTypes:list):
         with open (self._newFile, 'w') as file:
             file.write('#include <sys/auxv.h>\n')
-
-            for function in self._functions:
-                file.write("\n//" + function._functName + " ============================================================================//\n")
-                for line in function.getNewFunction(1):
-                    file.write(line + '\n')
-                for line in function.getNewFunction(2):
-                    file.write(line + '\n')
-                for line in function.getNewFunction(3):
-                    file.write(line + '\n')
-
+            if len(avTypes) == 0:
+                for function in self._functions:
+                    file.write("\n//" + function._functName + " ============================================================================//\n")
+                    file.writelines(function.getNewFunction(1))
+                    file.writelines(function.getNewFunction(2))
+                    file.writelines(function.getNewFunction(3))
+            else:
+                for function in self._functions:
+                    file.write("\n//" + function._functName + " ============================================================================//\n")
+                    for av in avTypes:
+                        file.writelines(function.getNewFunction(av))
             file.writelines(self._ifuncBits.getIfuncBits())
 
     def setOrigContent(self):
@@ -166,11 +242,12 @@ class autoVectorTool:
                 for line in src.read().splitlines():
                     self._origContent.append(line)
         except:            
-            print(txtColors.FAIL + "\nERROR: Unable to retrieve file content from\"" + self._filename +  "\"\n")
-            print(txtColors.WARNING + "Ensure that the file name is correct and that the file is in the current directory" + txtColors.STD)
+            print(txtColors.RED + "\nERROR: Unable to retrieve file content from\"" + self._filename +  "\"\n")
+            print(txtColors.YELLOW + "Ensure that the file name is correct and that the file is in the current directory" + txtColors.STD)
             sys.exit() 
 
     def getFunctions(self):
+        functDeclPattern1 = re.compile(r"[A-Za-z0-9]+\s+[A-Za-z0-9]", re.IGNORECASE)
         try:
             functionLines:list = []
             isFunctionLine = False
@@ -178,8 +255,10 @@ class autoVectorTool:
             for line in self._origContent:
                 if isFunctionLine is False:
                     if "(" in line:
-                        isFunctionLine = True
-                        functionLines.append(line)
+                        tokens = line.split("(")
+                        if functDeclPattern1.match(tokens[0]): 
+                            isFunctionLine = True
+                            functionLines.append(line)
                     if "{" in line:
                         openBrackets += 1
                 else:
@@ -196,15 +275,15 @@ class autoVectorTool:
                     else:
                         functionLines.append(line)
         except:
-            print(txtColors.FAIL + "\nERROR: Unable to retrieve function in file content for \"" + self._filename +  "\"\n")
-            print(txtColors.WARNING + "Ensure that the file name is correct and that the file contains functions" + txtColors.STD)  
+            print(txtColors.RED + "\nERROR: Unable to retrieve function in file content for \"" + self._filename +  "\"\n")
+            print(txtColors.YELLOW + "Ensure that the file name is correct and that the file contains functions" + txtColors.STD)  
             sys.exit()   
 
     def confirmNewFile(self):
         if os.path.exists(self._newFile):
             print(txtColors.GREEN + "AVT succesfully created " + "\'" + self._newFile + "\'" + txtColors.STD)
         else:
-            print(txtColors.FAIL + "AVT unable to confirm " + self._newFile + " was sucessfully created." + txtColors.STD)
+            print(txtColors.RED + "AVT unable to confirm " + self._newFile + " was sucessfully created." + txtColors.STD)
 
     def modifyMakefile(self):
         f = self._filename.split('.')
@@ -223,41 +302,73 @@ class autoVectorTool:
                 for line in newMF:
                     mf.write(line + '\n')
         except:
-            print(txtColors.FAIL + "Unable to modify Makefile.\n" + txtColors.WARNING + "Ensure that a Makefile is present in the current to be modified by AVT" + txtColors.STD)
+            print(txtColors.RED + "Unable to modify Makefile.\n" + txtColors.YELLOW + "Ensure that a Makefile is present in the current to be modified by AVT" + txtColors.STD)
 #=====================================================================================================================================#
 
-def printInvalidOptionsMessage():
-    print(txtColors.FAIL + "Invalid options included in AVT call")
-    print(txtColors.WARNING + "Use < py avt -h > to see available options" + txtColors.STD)
+class avtFactorum:
+    def __init__(self, args):
+        self._files = []
+        self._options = []
+        self._toolLines = []
+
+        self.handleArgs(args)
+        self.makeTools()
+
+    def run(self):
+        if '-h' in self._options:
+            self.help()
+
+        avTypes:int = []
+        if '-nsve' in self._options:
+            avTypes.append(1)
+        if '-sve' in self._options:
+            avTypes.append(2)
+        if '-sve2' in self._options:
+            avTypes.append(3)
+
+        for tool in self._toolLines:
+            tool.run(avTypes)
+
+    def handleArgs(self, args):
+        args.pop(0)
+        for arg in args:
+            if arg.startswith('-'):
+                self._options.append(arg)
+            else:
+                self._files.append(arg)
+
+    def makeTools(self):
+        for file in self._files:
+            self._toolLines.append(autoVectorTool(file))
+
+    def runMake(self):
+        p = subprocess.Popen('make', stdout=subprocess.PIPE)
+        print (txtColors.BLUE + "Make status:")
+        for line in p.stdout:
+            print(line)
+        p.wait()
+
+    def printInvalidOptionsMessage(self):
+        print(txtColors.RED + "Invalid options included in AVT call")
+        print(txtColors.YELLOW + "Use < py avt -h > to see available options" + txtColors.STD)
+
+    def noFileErr(self):
+        raise Exception(txtColors.RED + 
+            "To use the avt tool you must call it with a file like so:\n" + 
+            txtColors.YELLOW + "      " + "< py avt function.c >\n" +
+            "OR       < py avt -h > to see optional options" +
+            txtColors.STD)
+
+    def help(self):
+        print(txtColors.BLUE + "\nAutoVectorTool options:")
+        print(txtColors.GREEN + "\n-h                    :  display help menu; view all options" + txtColors.STD)
+        print(txtColors.GREEN + "\n-m                    :  modify an existing makefile and call make" + txtColors.STD)
+        print(txtColors.GREEN + "\n-nsve, -sve, -sve2    :  make changes for specific autovectorization type. (can call multiple target options)" + txtColors.STD)
+        print('')
+        sys.exit()
+#=====================================================================================================================================#
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        raise Exception(txtColors.FAIL + 
-        "To use the avt tool you must call it with a file like so:\n" + 
-        txtColors.WARNING + "      " + "< py avt function.c >\n" +
-        "OR       < py avt -h > in order to see optional commands" +
-        txtColors.STD)
-    elif len(sys.argv) < 3:
-        if sys.argv[1] == '-h':
-            print("AutoVectorTool options:")
-            print(txtColors.GREEN + "\n-m   :   modify a makefile and call make after modifying" + txtColors.STD)
-            print('')
-            sys.exit()
-        else:
-            avt = autoVectorTool(sys.argv[1])
-            avt.run()
-            sys.exit()
-    elif len(sys.argv) < 4:
-        if sys.argv[2] == '-m':
-            avt = autoVectorTool(sys.argv[1])
-            avt.run()
-            p = subprocess.Popen('make', stdout=subprocess.PIPE)
-            for line in p.stdout:
-                print(line)
-            p.wait()
-        else:
-            printInvalidOptionsMessage()
-    elif len(sys.argv) > 3:
-       printInvalidOptionsMessage()
-    else:
-        printInvalidOptionsMessage()
+
+    factorum = avtFactorum(sys.argv)
+    factorum.run()
