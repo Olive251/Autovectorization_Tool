@@ -55,7 +55,6 @@ class pragmas:
     SVE = "#pragma GCC target \"march=armv8-a+sve\""
     NonSVE = "#pragma GCC target \"march=armv8-a\""
 
-#color codes
 class txtColors:
     RED = '\033[91m'
     YELLOW = '\033[93m'
@@ -198,7 +197,6 @@ class ifuncWriter:
         ifuncBits.append('\n')
         for line in self._main:
             ifuncBits.append(line + '\n')
-
         return ifuncBits
 #=====================================================================================================================================#
 
@@ -369,6 +367,5 @@ class avtFactorum:
 #=====================================================================================================================================#
 
 if __name__ == "__main__":
-
     factorum = avtFactorum(sys.argv)
     factorum.run()
