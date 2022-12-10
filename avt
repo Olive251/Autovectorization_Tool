@@ -5,21 +5,46 @@ import os.path
 import re
 
 class resolverTemplate:
-    resolver = [
-    'static void (*resolve_foo(void)) {',
-    '    long hwcaps = getauxval(AT_HWCAP);',
-    '    long hwcaps2 = getauxval(AT_HWCAP2);',
-    '',
-    '    if (hwcaps2 & HWCAP2_SVE2)',
-    '        return foo_SVE2;',
-    '    else if (hwcaps & HWCAP_SVE)',
-    '        return foo_SVE;',
-    '    else ',
-    '        return foo_NonSVE;',
-    '}',
-    '',
-    'void *foo() __attribute__((ifunc("resolve_foo")));',
+    declaration = 'static void (*resolve_foo(void)) {'
+    resolverVars = [
+        '    long hwcaps = getauxval(AT_HWCAP);',
+        '    long hwcaps2 = getauxval(AT_HWCAP2);',
+        ''
     ]
+    ifElseAll = [
+        '    if (hwcaps2 & HWCAP2_SVE2)',
+        '        return foo_SVE2;',
+        '    else if (hwcaps & HWCAP_SVE)',
+        '        return foo_SVE;',
+        '    else ',
+        '        return foo_NonSVE;'
+    ]
+    if_SVE2 = [
+        '    if (hwcaps2 & HWCAP2_SVE2)',
+        '        return foo_SVE2;'
+    ]
+    if_SVE = [
+        '    if (hwcaps & HWCAP_SVE)',
+        '        return foo_SVE;'
+    ]
+    elif_SVE = [
+        '    else if (hwcaps & HWCAP_SVE)',
+        '        return foo_SVE;'
+    ]
+    else_x = [
+        '    else',
+        '        printf(\'System is not capable of select AVT option. Unable to resolve ifunc.\')'
+    ]
+    else_NonSVE = [
+        '    else ',
+        '        return foo_NonSVE;'
+    ]
+    NonSVE = '   return foo_NonSVE'
+    resolverCall = [
+        '',
+        'void *foo() __attribute__((ifunc("resolve_foo")));',
+    ]
+
     main = [
         'int main() {'
     ]
@@ -102,20 +127,66 @@ class functionConverter:
 #=====================================================================================================================================#
 
 class ifuncWriter:
-    def __init__(self):
+    def __init__(self, avTypes):
+        self._avTypes = avTypes
         self._resolvers = []
         self._main = resolverTemplate.main.copy()
 
     def __add__(self, functionName:str):
-        resolver = ["//resolver for " + functionName]
-        for line in resolverTemplate.resolver:
-            line = line.replace("foo", functionName)
-            resolver.append(line)
-        self._resolvers.append(resolver)
-        self.modifyMain(functionName)
-
-    def modifyMain(self, functionName:str):
         self._main.append('    ' + functionName + '();')
+
+        resolver = ["//resolver for " + functionName]
+        decl = resolverTemplate.declaration.replace("foo", functionName)
+        resolver.append(decl)
+        resolver.extend(resolverTemplate.resolverVars)
+
+        if len(self._avTypes) == 0 or all(val in self._avTypes for val in [3,2,1]):
+            print('ifuncWriter: making standard resolver')
+            for line in resolverTemplate.ifElseAll.copy():
+                resolver.append(line.replace("foo", functionName))
+
+        elif all(val in self._avTypes for val in [3,2]):
+            print('ifuncWriter: making sve2+sve resolver')
+            for line in resolverTemplate.if_SVE2:
+                resolver.append(line.replace("foo", functionName))
+            for line in resolverTemplate.elif_SVE:
+                resolver.append(line.replace("foo", functionName))
+            resolver.extend(resolverTemplate.else_x)
+
+        elif all(val in self._avTypes for val in [3,1]):
+            print('ifuncWriter: making sve2+nsve resolver')
+            for line in resolverTemplate.if_SVE2:
+                resolver.append(line.replace("foo", functionName))
+            for line in resolverTemplate.else_NonSVE:
+                resolver.append(line.replace("foo", functionName))
+
+        elif all(val in self._avTypes for val in [2,1]):
+            print('ifuncWriter: making sve+nsve resolver')
+            for line in resolverTemplate.if_SVE:
+                resolver.append(line.replace("foo", functionName))
+            for line in resolverTemplate.else_NonSVE:
+                resolver.append(line.replace("foo", functionName))
+
+        elif self._avTypes[0] == 2:
+            for line in resolverTemplate.if_SVE:
+                resolver.append(line.replace("foo", functionName))
+            resolver.extend(resolverTemplate.else_x)
+
+        elif self._avTypes[0] == 3:
+            for line in resolverTemplate.if_SVE2:
+                resolver.append(line.replace("foo", functionName))
+            resolver.extend(resolverTemplate.else_x)
+
+        elif self._avTypes[0] == 1:
+            resolver.append(resolverTemplate.NonSVE.replace("foo", functionName))
+
+        else:
+            raise TypeError("Invalid parameter passed to ifuncWriter.__add__()")
+
+        resolver.append('}')
+        for line in resolverTemplate.resolverCall.copy():
+            resolver.append(line.replace("foo", functionName))
+        self._resolvers.append(resolver)
 
     def getIfuncBits(self):
         self._main.append('}')
@@ -136,13 +207,13 @@ class autoVectorTool:
         self._filename = filename
         fNameParts = filename.split(".")
         self._newFile = fNameParts[0] + "_AVT." + fNameParts[1]
-        self._ifuncBits = ifuncWriter()
         self._origContent = []
         self._functions = []
         self.setOrigContent()
         self.getFunctions()
         
     def run(self, avTypes:list):
+        self._ifuncBits = ifuncWriter(avTypes)
         for function in self._functions:
             self._ifuncBits + function._functName
         
@@ -152,7 +223,7 @@ class autoVectorTool:
     def writeNewFile(self, avTypes:list):
         with open (self._newFile, 'w') as file:
             file.write('#include <sys/auxv.h>\n')
-            if avTypes[0] == 0:
+            if len(avTypes) == 0:
                 for function in self._functions:
                     file.write("\n//" + function._functName + " ============================================================================//\n")
                     file.writelines(function.getNewFunction(1))
@@ -160,6 +231,7 @@ class autoVectorTool:
                     file.writelines(function.getNewFunction(3))
             else:
                 for function in self._functions:
+                    file.write("\n//" + function._functName + " ============================================================================//\n")
                     for av in avTypes:
                         file.writelines(function.getNewFunction(av))
             file.writelines(self._ifuncBits.getIfuncBits())
@@ -175,18 +247,16 @@ class autoVectorTool:
             sys.exit() 
 
     def getFunctions(self):
-        functDecPattern1 = re.compile(r"[A-Za-z0-9]+\s+[A-Za-z0-9]", re.IGNORECASE)
-
+        functDeclPattern1 = re.compile(r"[A-Za-z0-9]+\s+[A-Za-z0-9]", re.IGNORECASE)
         try:
             functionLines:list = []
             isFunctionLine = False
             openBrackets = 0
             for line in self._origContent:
                 if isFunctionLine is False:
-                    #TODO -make this more secure. Use regex or something. This could easily catch non-functions too
                     if "(" in line:
                         tokens = line.split("(")
-                        if functDecPattern1.match(tokens[0]): 
+                        if functDeclPattern1.match(tokens[0]): 
                             isFunctionLine = True
                             functionLines.append(line)
                     if "{" in line:
@@ -296,6 +366,7 @@ class avtFactorum:
         print(txtColors.GREEN + "\n-nsve, -sve, -sve2    :  make changes for specific autovectorization type. (can call multiple target options)" + txtColors.STD)
         print('')
         sys.exit()
+#=====================================================================================================================================#
 
 if __name__ == "__main__":
     factorum = avtFactorum(sys.argv)
