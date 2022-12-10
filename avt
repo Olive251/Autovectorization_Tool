@@ -70,16 +70,15 @@ class functionConverter:
             vectorizationSuffix = sve2
             pragma = pragmas.SVE2
         else:
-            print(txtColors.FAIL + "ERROR: getNewFunction received an invalid avType ID. Must be between 1-3" + txtColors.STD)
-            sys.exit()
+            raise TypeError("Bad value passed into getNewFunction()")
         
         return self.editFunction(vectorizationSuffix, pragma)
 
     def editFunction(self, vecSuf:str, pragma:str):
-        nFunc = [""]
-        nFunc[0] = pragma
+        nFunc = []
+        nFunc.append(pragma + '\n')
         for line in self._functLines:
-            nFunc.append(line)
+            nFunc.append(line + '\n')
 
         declaration = nFunc[1]
         declParts = declaration.split("(")
@@ -89,6 +88,7 @@ class functionConverter:
 
         newDeclaration = declParts[0] + "(" + declParts[1]
         nFunc[1] = newDeclaration
+        nFunc.append('\n')
 
         return nFunc
     
@@ -144,19 +144,19 @@ class autoVectorTool:
         self.writeNewFunctFile()
         self.confirmNewFile()
         
-    def writeNewFunctFile(self):
+    def writeNewFunctFile(self, *avType:int):
         with open (self._newFile, 'w') as file:
             file.write('#include <sys/auxv.h>\n')
-
-            for function in self._functions:
-                file.write("\n//" + function._functName + " ============================================================================//\n")
-                for line in function.getNewFunction(1):
-                    file.write(line + '\n')
-                for line in function.getNewFunction(2):
-                    file.write(line + '\n')
-                for line in function.getNewFunction(3):
-                    file.write(line + '\n')
-
+            if len(avType) == 0:
+                for function in self._functions:
+                    file.write("\n//" + function._functName + " ============================================================================//\n")
+                    file.writelines(function.getNewFunction(1))
+                    file.writelines(function.getNewFunction(2))
+                    file.writelines(function.getNewFunction(3))
+            else:
+                for function in self._functions:
+                    for av in avType:
+                        file.writelines(function.getNewFunction(av))
             file.writelines(self._ifuncBits.getIfuncBits())
 
     def setOrigContent(self):
@@ -227,7 +227,29 @@ class autoVectorTool:
 #=====================================================================================================================================#
 
 #TODO
-# add another option so the user can put in -sve, -sve2, or -nsve to select vectorization type
+# add another option so the user can put in -sve, -sve2, or -nsve  or multiple to select vectorization type
+
+class avtFactorum:
+    def __init__(self, args):
+        self._files = []
+        self._options = []
+        self._toolLines = []
+
+        self.handleArgs(args)
+        self.makeTools()
+
+
+    def handleArgs(args):
+        #skip args[0]
+        #for args
+            #if arg starts with "-", add it to options
+            #if it does not start with "-", add it to files
+        pass
+
+    def makeTools(self):
+        for file in self._files:
+            self._toolLines.append(autoVectorTool(file))
+    
 
 def printInvalidOptionsMessage():
     print(txtColors.FAIL + "Invalid options included in AVT call")
@@ -238,12 +260,12 @@ if __name__ == "__main__":
         raise Exception(txtColors.FAIL + 
         "To use the avt tool you must call it with a file like so:\n" + 
         txtColors.WARNING + "      " + "< py avt function.c >\n" +
-        "OR       < py avt -h > in order to see optional commands" +
+        "OR       < py avt -h > to see optional options" +
         txtColors.STD)
     elif len(sys.argv) < 3:
         if sys.argv[1] == '-h':
             print("AutoVectorTool options:")
-            print(txtColors.GREEN + "\n-m   :   modify a makefile and call make after modifying" + txtColors.STD)
+            print(txtColors.GREEN + "\n-m   :   modify an existing makefile and call make" + txtColors.STD)
             print('')
             sys.exit()
         else:
