@@ -36,4 +36,5 @@ AVT can also target user specified autovectorization types
 
 -Dec 11:
 > Added additional error handling and improved error output
+
 > Minor performance tweeks
