@@ -303,14 +303,22 @@ class autoVectorTool:
             print(txtColors.RED + "Unable to modify Makefile.\n" + txtColors.YELLOW + "Ensure that a Makefile is present in the current to be modified by AVT" + txtColors.STD)
 #=====================================================================================================================================#
 
+safeOptions = ['-h', '-m', '-nsve', '-sve', '-sve2']
+
 class avtFactorum:
     def __init__(self, args):
         self._files = []
         self._options = []
         self._toolLines = []
-
         self.handleArgs(args)
         self.makeTools()
+
+    def prerunCheck(self):
+        for opt in self._options:
+            if opt not in safeOptions:
+                self.printInvalidOptionsMessage()
+        if len(self._files) < 1:
+            self.noFileErr()
 
     def run(self):
         if '-h' in self._options:
@@ -330,6 +338,7 @@ class avtFactorum:
     def handleArgs(self, args):
         args.pop(0)
         for arg in args:
+            arg.lower()
             if arg.startswith('-'):
                 self._options.append(arg)
             else:
@@ -348,13 +357,13 @@ class avtFactorum:
 
     def printInvalidOptionsMessage(self):
         print(txtColors.RED + "Invalid options included in AVT call")
-        print(txtColors.YELLOW + "Use < py avt -h > to see available options" + txtColors.STD)
+        print(txtColors.YELLOW + "Use < avt -h > to see available options" + txtColors.STD)
 
     def noFileErr(self):
         raise Exception(txtColors.RED + 
             "To use the avt tool you must call it with a file like so:\n" + 
             txtColors.YELLOW + "      " + "< py avt function.c >\n" +
-            "OR       < py avt -h > to see optional options" +
+            "OR       < avt -h > to see all options" +
             txtColors.STD)
 
     def help(self):
