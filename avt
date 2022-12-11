@@ -135,17 +135,14 @@ class ifuncWriter:
         self._main.append('    ' + functionName + '();')
 
         resolver = ["//resolver for " + functionName]
-        decl = resolverTemplate.declaration.replace("foo", functionName)
-        resolver.append(decl)
+        resolver.append(resolverTemplate.declaration.replace("foo", functionName))
         resolver.extend(resolverTemplate.resolverVars)
 
         if len(self._avTypes) == 0 or all(val in self._avTypes for val in [3,2,1]):
-            print('ifuncWriter: making standard resolver')
             for line in resolverTemplate.ifElseAll.copy():
                 resolver.append(line.replace("foo", functionName))
 
         elif all(val in self._avTypes for val in [3,2]):
-            print('ifuncWriter: making sve2+sve resolver')
             for line in resolverTemplate.if_SVE2:
                 resolver.append(line.replace("foo", functionName))
             for line in resolverTemplate.elif_SVE:
@@ -153,14 +150,12 @@ class ifuncWriter:
             resolver.extend(resolverTemplate.else_x)
 
         elif all(val in self._avTypes for val in [3,1]):
-            print('ifuncWriter: making sve2+nsve resolver')
             for line in resolverTemplate.if_SVE2:
                 resolver.append(line.replace("foo", functionName))
             for line in resolverTemplate.else_NonSVE:
                 resolver.append(line.replace("foo", functionName))
 
         elif all(val in self._avTypes for val in [2,1]):
-            print('ifuncWriter: making sve+nsve resolver')
             for line in resolverTemplate.if_SVE:
                 resolver.append(line.replace("foo", functionName))
             for line in resolverTemplate.else_NonSVE:
@@ -359,9 +354,9 @@ class avtFactorum:
 
     def help(self):
         print(txtColors.BLUE + "\nAutoVectorTool options:")
-        print(txtColors.GREEN + "\n-h                    :  display help menu; view all options" + txtColors.STD)
-        print(txtColors.GREEN + "\n-m                    :  modify an existing makefile and call make" + txtColors.STD)
-        print(txtColors.GREEN + "\n-nsve, -sve, -sve2    :  make changes for specific autovectorization type. (can call multiple target options)" + txtColors.STD)
+        print(txtColors.GREEN + "\n-h                       : display help menu; view all options" + txtColors.STD)
+        print(txtColors.GREEN + "\n-m                       : modify an existing makefile and call make" + txtColors.STD)
+        print(txtColors.GREEN + "\n-nsve, -sve, -sve2       : make changes for specific autovectorization type. (can call multiple target options)" + txtColors.STD)
         print('')
         sys.exit()
 #=====================================================================================================================================#
