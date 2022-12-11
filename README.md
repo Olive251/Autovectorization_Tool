@@ -33,3 +33,7 @@ AVT can also target user specified autovectorization types
 > User can now target multiple files
 
 > User can now select which autovectorization type to utilize with ifunc
+
+-Dec 11:
+> Added additional error handling and improved error output
+> Minor performance tweeks
