@@ -51,9 +51,9 @@ class resolverTemplate:
 
 #GCC target pragmas
 class pragmas:
-    SVE2 = "#pragma GCC target \"march=armv8-a+sve2\""
-    SVE = "#pragma GCC target \"march=armv8-a+sve\""
-    NonSVE = "#pragma GCC target \"march=armv8-a\""
+    SVE2 = "#pragma GCC target \"arch=armv8-a+sve2\""
+    SVE = "#pragma GCC target \"arch=armv8-a+sve\""
+    NonSVE = "#pragma GCC target \"arch=armv8-a\""
 
 class tf:
     RED = '\033[91m'
