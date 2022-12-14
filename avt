@@ -186,15 +186,13 @@ class ifuncWriter:
         self._resolvers.append(resolver)
 
     def getIfuncBits(self):
-        self._main.append('}')
         ifuncBits = []
         for resolver in self._resolvers:
             for line in resolver:
                 ifuncBits.append(line + '\n')
             ifuncBits.append('\n')
         ifuncBits.append('\n')
-        for line in self._main:
-            ifuncBits.append(line + '\n')
+        
         return ifuncBits
 #=====================================================================================================================================#
 
